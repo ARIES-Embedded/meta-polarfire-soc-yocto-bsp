@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (C) 2021 - Wolfgang Grandegger <wg@aries-embedded.de>
+ */
+
+/dts-v1/;
+#include "m100pfsevp.dtsi"
+
+&mssgpio0 {
+	emmc_sel {
+		gpio-hog;
+		gpios = <12 0>;
+		output-low;
+	};
+};
+
+&sdmmc {
+	max-frequency = <50000000>;
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	no-1-8-v;
+	non-removable;
+	status = "ok";
+};

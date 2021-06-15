@@ -17,6 +17,13 @@ SRC_URI_append_icicle-kit-es-amp = " \
     file://icicle-kit-es-microchip-context-a.dts \
  "
 
+SRC_URI_append_m100pfsevp = " \
+    file://m100pfsevp.dtsi \
+    file://m100pfsevp-emmc.dts \
+    file://m100pfsevp-sdcard.dts \
+    file://0001-riscv-Add-Aries-M100PFSEVP-PolarFire-SoC-FPGA-Platfo.patch \
+ "
+
 do_configure_prepend_icicle-kit-es() {
     cp -f ${WORKDIR}/icicle-kit-es-microchip.dts ${S}/arch/riscv/boot/dts/microchip/microchip-mpfs-icicle-kit.dts
 }
@@ -25,8 +32,15 @@ do_configure_prepend_icicle-kit-es-amp() {
     cp -f ${WORKDIR}/icicle-kit-es-microchip-context-a.dts ${S}/arch/riscv/boot/dts/microchip/microchip-mpfs-icicle-kit-context-a.dts
 }
 
+do_configure_prepend_m100pfsevp() {
+    cp -f ${WORKDIR}/m100pfsevp.dtsi ${S}/arch/riscv/boot/dts/aries
+    cp -f ${WORKDIR}/m100pfsevp-emmc.dts ${S}/arch/riscv/boot/dts/aries
+    cp -f ${WORKDIR}/m100pfsevp-sdcard.dts ${S}/arch/riscv/boot/dts/aries
+}
+ 
 SRC_URI_append_icicle-kit-es = " file://defconfig"
 SRC_URI_append_icicle-kit-es-amp = " file://defconfig"
+SRC_URI_append_m100pfsevp = " file://defconfig"
 
 
 

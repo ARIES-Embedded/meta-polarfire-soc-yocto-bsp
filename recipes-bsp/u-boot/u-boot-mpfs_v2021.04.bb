@@ -7,6 +7,7 @@ SRC_URI = "git://git.denx.de/u-boot.git \
 	       file://${UBOOT_ENV}.txt \
 	       file://0001-riscv-icicle-kit-add-i2c-support.patch \
 	       file://0001-Update-the-second-mac-address.patch \
+	       file://0001-riscv-Add-Aries-M100PFSEVP-PolarFire-SoC-FPGA-Platfo.patch \
           "
 SRC_URI_append_icicle-kit-es = " \
     file://microchip-mpfs-icicle-kit.dts \
@@ -14,6 +15,10 @@ SRC_URI_append_icicle-kit-es = " \
 
 SRC_URI_append_icicle-kit-es-amp = " \
     file://microchip-mpfs-icicle-kit-context-a.dts \
+"
+
+SRC_URI_append_m100pfsevp = " \
+    file://m100pfsevp.dts \
 "
 
 SRCREV = "b46dd116ce03e235f2a7d4843c6278e1da44b5e1"
@@ -41,6 +46,14 @@ do_configure_prepend_icicle-kit-es-amp() {
     fi
 }
 
+do_configure_prepend_m100pfsevp() {
+    sed -i -e 's,@SERVERIP@,${TFTP_SERVER_IP},g' ${WORKDIR}/${UBOOT_ENV}.txt
+    if [ -f "${WORKDIR}/${UBOOT_ENV}.txt" ]; then
+        mkimage -O linux -T script  -C none -n "U-Boot boot script" \
+            -d ${WORKDIR}/${UBOOT_ENV}.txt ${WORKDIR}/boot.scr.uimg
+    fi
+}
+
 do_deploy_append_icicle-kit-es() {
     if [ -f "${WORKDIR}/boot.scr.uimg" ]; then
         install -d ${DEPLOY_DIR_IMAGE}
@@ -49,6 +62,13 @@ do_deploy_append_icicle-kit-es() {
 }
 
 do_deploy_append_icicle-kit-es-amp() {
+    if [ -f "${WORKDIR}/boot.scr.uimg" ]; then
+        install -d ${DEPLOY_DIR_IMAGE}
+        install -m 755 ${WORKDIR}/boot.scr.uimg ${DEPLOY_DIR_IMAGE}
+    fi
+}
+
+do_deploy_append_m100pfsevp() {
     if [ -f "${WORKDIR}/boot.scr.uimg" ]; then
         install -d ${DEPLOY_DIR_IMAGE}
         install -m 755 ${WORKDIR}/boot.scr.uimg ${DEPLOY_DIR_IMAGE}

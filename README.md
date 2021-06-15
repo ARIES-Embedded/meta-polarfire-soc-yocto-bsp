@@ -12,7 +12,8 @@ Using Yocto 'Openembedded' you will build the following:
 The complete User Guides for each development platform, containing board and boot instructions, are available for the following supported platforms:
 
   - [ICICLE-KIT-ES](https://github.com/polarfire-soc/polarfire-soc-documentation/blob/master/boards/mpfs-icicle-kit-es/icicle-kit-sw-developer-guide/icicle-kit-sw-developer-guide.md) (Icicle Kit Engineering Sample) (Requires minimum Design Tag 2020.11 )
-  
+  - [M100PFSEVP](https://www.aries-embedded.com/evaluation-kit/fpga/polarfire-microchip-soc-fpga-m100pfsevp-riscv-hsmc-pmod) (Aries Embedded M100PFSEVP PolarFire SoC-FPGA Evaluation Platform)  
+
 ## Build Instructions 
 Before continuing, ensure that the prerequisite packages are present on your system. Please see the [Host PC setup for Yocto section](#Dependencies) for further details.
 
@@ -22,6 +23,12 @@ This needs to be done every time you want a clean setup based on the latest BSP.
 mkdir yocto-dev && cd yocto-dev
 repo init -u https://github.com/polarfire-soc/meta-polarfire-soc-yocto-bsp.git -b master -m tools/manifests/riscv-yocto.xml
 ```
+For the Aries Embedded M100PFSEVP, please use:
+```bash
+mkdir yocto-dev && cd yocto-dev
+repo init -u https://github.com/ARIES-Embedded/meta-polarfire-soc-yocto-bsp.git -b aries -m tools/manifests/riscv-yocto.xml
+```
+
 ### Update the repo workspace
 ```bash
 repo sync
@@ -53,6 +60,7 @@ The following table details the available targets:
 | -------------------------- | --------------------------------------------------------------------- |
 | `MACHINE=icicle-kit-es`    | ICICLE-KIT-ES, Icicle Kit engineering samples                         |
 | `MACHINE=icicle-kit-es-amp`| ICICLE-KIT-ES, Icicle Kit engineering samples in AMP mode             |
+| `MACHINE=m100pfsevp`       | M100PFSEVP, Aries M100PFSEVP PolarFire SoC-FPGA Evaluation Platform   |
 | `MACHINE=qemuriscv64`      | Simulation                                                            |
 
 The `icicle-kit-es-amp` machine can be used to build the Icicle Kit engineering sample with AMP support. Please see the [Asymmetric Multiprocessing (AMP)](https://github.com/polarfire-soc/polarfire-soc-documentation/blob/master/asymmetric-multiprocessing/amp.md) documentation for further details.

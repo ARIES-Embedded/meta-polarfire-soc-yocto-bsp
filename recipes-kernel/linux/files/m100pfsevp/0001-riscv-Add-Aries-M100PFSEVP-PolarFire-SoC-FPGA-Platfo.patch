@@ -1,0 +1,821 @@
+From 7ebaef00b3820a68cebd4e0fe1a0102a6d93481b Mon Sep 17 00:00:00 2001
+From: Wolfgang Grandegger <wg@aries-embedded.de>
+Date: Wed, 26 May 2021 18:00:37 +0200
+Subject: [PATCH] riscv: Add Aries M100PFSEVP PolarFire SoC-FPGA Platform
+ support
+
+The following devices are supported:
+
+- eMMC or SD card
+- Ethernet
+- UART
+- USB host
+- I2C
+
+There are two device trees for booting from eMMC or SD card:
+
+- m100pfsevp-sdcard.dtb
+- m100pfsevp-emmc.dtb
+
+The MMC device used will automatically be selected by hogging
+GPIO #12.
+
+Signei-off-by: Wolfgang Grandegger <wg@aries-embedded.de>
+---
+ arch/riscv/boot/dts/Makefile                  |   1 +
+ arch/riscv/boot/dts/aries/Makefile            |   3 +
+ arch/riscv/boot/dts/aries/m100pfsevp-emmc.dts |  24 +
+ .../boot/dts/aries/m100pfsevp-sdcard.dts      |  28 ++
+ arch/riscv/boot/dts/aries/m100pfsevp.dtsi     | 474 ++++++++++++++++++
+ arch/riscv/configs/m100pfsevp_defconfig       | 147 ++++++
+ drivers/gpio/gpio-microsemi.c                 |   5 +-
+ drivers/gpio/gpiolib.c                        |  12 +-
+ 8 files changed, 692 insertions(+), 2 deletions(-)
+ create mode 100644 arch/riscv/boot/dts/aries/Makefile
+ create mode 100644 arch/riscv/boot/dts/aries/m100pfsevp-emmc.dts
+ create mode 100644 arch/riscv/boot/dts/aries/m100pfsevp-sdcard.dts
+ create mode 100644 arch/riscv/boot/dts/aries/m100pfsevp.dtsi
+ create mode 100644 arch/riscv/configs/m100pfsevp_defconfig
+
+diff --git a/arch/riscv/boot/dts/Makefile b/arch/riscv/boot/dts/Makefile
+index b2fd0fe1ff19..322ee639d9a2 100644
+--- a/arch/riscv/boot/dts/Makefile
++++ b/arch/riscv/boot/dts/Makefile
+@@ -1,3 +1,4 @@
+ # SPDX-License-Identifier: GPL-2.0
+ subdir-y += sifive
+ subdir-y += microchip
++subdir-y += aries
+diff --git a/arch/riscv/boot/dts/aries/Makefile b/arch/riscv/boot/dts/aries/Makefile
+new file mode 100644
+index 000000000000..598a6121f672
+--- /dev/null
++++ b/arch/riscv/boot/dts/aries/Makefile
+@@ -0,0 +1,3 @@
++# SPDX-License-Identifier: GPL-2.0
++dtb-$(CONFIG_SOC_MICROCHIP_POLARFIRE) += m100pfsevp-emmc.dtb
++dtb-$(CONFIG_SOC_MICROCHIP_POLARFIRE) += m100pfsevp-sdcard.dtb
+diff --git a/arch/riscv/boot/dts/aries/m100pfsevp-emmc.dts b/arch/riscv/boot/dts/aries/m100pfsevp-emmc.dts
+new file mode 100644
+index 000000000000..b80f5d0613c6
+--- /dev/null
++++ b/arch/riscv/boot/dts/aries/m100pfsevp-emmc.dts
+@@ -0,0 +1,24 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Copyright (C) 2021 - Wolfgang Grandegger <wg@aries-embedded.de>
++ */
++
++/dts-v1/;
++#include "m100pfsevp.dtsi"
++
++&mssgpio0 {
++	emmc_sel {
++		gpio-hog;
++		gpios = <12 0>;
++		output-low;
++	};
++};
++
++&sdmmc {
++	max-frequency = <50000000>;
++	bus-width = <8>;
++	cap-mmc-highspeed;
++	no-1-8-v;
++	non-removable;
++	status = "ok";
++};
+diff --git a/arch/riscv/boot/dts/aries/m100pfsevp-sdcard.dts b/arch/riscv/boot/dts/aries/m100pfsevp-sdcard.dts
+new file mode 100644
+index 000000000000..9f0accf711a7
+--- /dev/null
++++ b/arch/riscv/boot/dts/aries/m100pfsevp-sdcard.dts
+@@ -0,0 +1,28 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Copyright (C) 2021 - Wolfgang Grandegger <wg@aries-embedded.de>
++ */
++
++/dts-v1/;
++#include "m100pfsevp.dtsi"
++
++&mssgpio0 {
++	sdcard_sel {
++		gpio-hog;
++		gpios = <12 0>;
++		output-high;
++	};
++};
++
++&sdmmc {
++	max-frequency = <50000000>;
++	bus-width = <4>;
++	no-1-8-v;
++	cap-sd-highspeed;
++	sd-uhs-sdr12;
++	sd-uhs-sdr25;
++	sd-uhs-sdr50;
++	sd-uhs-sdr104;  
++	card-detect-delay = <200>;
++	status = "okay";
++};
+diff --git a/arch/riscv/boot/dts/aries/m100pfsevp.dtsi b/arch/riscv/boot/dts/aries/m100pfsevp.dtsi
+new file mode 100644
+index 000000000000..ec2522f68f64
+--- /dev/null
++++ b/arch/riscv/boot/dts/aries/m100pfsevp.dtsi
+@@ -0,0 +1,474 @@
++// SPDX-License-Identifier: (GPL-2.0 OR MIT)
++/* Copyright (c) 2019-2020 Microchip Technology Inc */
++
++#include "dt-bindings/clock/microchip,mpfs-clock.h"
++/ {
++	#address-cells = <2>;
++	#size-cells = <2>;
++	compatible = "SiFive,FU540G-dev", "fu540-dev", "sifive-dev";
++	model = "SiFive,FU540G";
++
++	aliases {
++		gpio0 = &mssgpio0;
++		gpio1 = &mssgpio2;
++	};
++
++	L45: cpus {
++		#address-cells = <1>;
++		#size-cells = <0>;
++		timebase-frequency = <1000000>;
++		L8: cpu@0 {
++			compatible = "sifive,rocket0", "riscv";
++			device_type = "cpu";
++			i-cache-block-size = <64>;
++			i-cache-sets = <128>;
++			i-cache-size = <16384>;
++			reg = <0>;
++			riscv,isa = "rv64imac";
++			status = "disabled";
++			L4: interrupt-controller {
++				#interrupt-cells = <1>;
++				compatible = "riscv,cpu-intc";
++				interrupt-controller;
++			};
++		};
++		L12: cpu@1 {
++			compatible = "sifive,rocket0", "riscv";
++			d-cache-block-size = <64>;
++			d-cache-sets = <64>;
++			d-cache-size = <32768>;
++			d-tlb-sets = <1>;
++			d-tlb-size = <32>;
++			device_type = "cpu";
++			i-cache-block-size = <64>;
++			i-cache-sets = <64>;
++			i-cache-size = <32768>;
++			i-tlb-sets = <1>;
++			i-tlb-size = <32>;
++			mmu-type = "riscv,sv39";
++			reg = <1>;
++			riscv,isa = "rv64imafdc";
++			tlb-split;
++			status = "okay";
++			L9: interrupt-controller {
++				#interrupt-cells = <1>;
++				compatible = "riscv,cpu-intc";
++				interrupt-controller;
++			};
++		};
++		L16: cpu@2 {
++			compatible = "sifive,rocket0", "riscv";
++			d-cache-block-size = <64>;
++			d-cache-sets = <64>;
++			d-cache-size = <32768>;
++			d-tlb-sets = <1>;
++			d-tlb-size = <32>;
++			device_type = "cpu";
++			i-cache-block-size = <64>;
++			i-cache-sets = <64>;
++			i-cache-size = <32768>;
++			i-tlb-sets = <1>;
++			i-tlb-size = <32>;
++			mmu-type = "riscv,sv39";
++			reg = <2>;
++			riscv,isa = "rv64imafdc";
++			tlb-split;
++			status = "okay";
++			L13: interrupt-controller {
++				#interrupt-cells = <1>;
++				compatible = "riscv,cpu-intc";
++				interrupt-controller;
++			};
++		};
++		L20: cpu@3 {
++			compatible = "sifive,rocket0", "riscv";
++			d-cache-block-size = <64>;
++			d-cache-sets = <64>;
++			d-cache-size = <32768>;
++			d-tlb-sets = <1>;
++			d-tlb-size = <32>;
++			device_type = "cpu";
++			i-cache-block-size = <64>;
++			i-cache-sets = <64>;
++			i-cache-size = <32768>;
++			i-tlb-sets = <1>;
++			i-tlb-size = <32>;
++			mmu-type = "riscv,sv39";
++			reg = <3>;
++			riscv,isa = "rv64imafdc";
++			tlb-split;
++			status = "okay";
++			L17: interrupt-controller {
++				#interrupt-cells = <1>;
++				compatible = "riscv,cpu-intc";
++				interrupt-controller;
++			};
++		};
++		L24: cpu@4 {
++			compatible = "sifive,rocket0", "riscv";
++			d-cache-block-size = <64>;
++			d-cache-sets = <64>;
++			d-cache-size = <32768>;
++			d-tlb-sets = <1>;
++			d-tlb-size = <32>;
++			device_type = "cpu";
++			i-cache-block-size = <64>;
++			i-cache-sets = <64>;
++			i-cache-size = <32768>;
++			i-tlb-sets = <1>;
++			i-tlb-size = <32>;
++			mmu-type = "riscv,sv39";
++			reg = <4>;
++			riscv,isa = "rv64imafdc";
++			tlb-split;
++			status = "okay";
++			L21: interrupt-controller {
++				#interrupt-cells = <1>;
++				compatible = "riscv,cpu-intc";
++				interrupt-controller;
++			};
++		};
++	};
++//	reserved-memory {
++//		ranges;
++//		#size-cells = <2>;
++//		#address-cells = <2>;
++//		fabricbuf0: fabricbuf@0 {
++//			compatible = "shared-dma-pool";
++//			reg = <0x00 0xae000000 0x0 0x02000000>;
++//			label = "fabricbuf0-ddr-c";
++//		};
++//		fabricbuf1: fabricbuf@1 {
++//			compatible = "shared-dma-pool";
++//			reg = <0x00 0xc0000000 0x0 0x08000000>;
++//			label = "fabricbuf1-ddr-nc";
++//		};
++//		fabricbuf2: fabricbuf@2 {
++//			compatible = "shared-dma-pool";
++//			reg = <0x00 0xd8000000 0x0 0x08000000>;
++//			label = "fabricbuf2-ddr-nc-wcb";
++//		};
++//	};
++	L44: soc {
++		#address-cells = <2>;
++		#size-cells = <2>;
++		compatible = "SiFive,FU540G-soc", "fu540-soc", "sifive-soc", "simple-bus";
++		ranges;
++		DDRC_CACHE_LO: memory@80000000 {
++			device_type = "memory";
++			reg = <0x0 0x80000000 0x0 0x40000000>;
++			clocks = <&clkcfg CLK_DDRC>;
++			status = "okay";
++		};
++		DDRC_CACHE_HI: memory@1040000000 {
++			device_type = "memory";
++			reg = <0x10 0x40000000 0x0 0x40000000>;
++			clocks = <&clkcfg CLK_DDRC>;
++			status = "okay";
++		};
++		L0: cache-controller@2010000 {
++			compatible = "sifive,fu540-c000-ccache", "cache";
++			cache-block-size = <64>;
++			cache-level = <2>;
++			cache-sets = <1024>;
++			cache-size = <2097152>;
++			cache-unified;
++			interrupt-parent = <&L1>;
++			interrupts = <1 2 3>;
++			reg = <0x0 0x2010000 0x0 0x1000>;
++		};
++		L1: interrupt-controller@c000000 {
++			#interrupt-cells = <1>;
++			compatible = "sifive,plic-1.0.0";
++			reg = <0x0 0xc000000 0x0 0x4000000>;
++			riscv,ndev = <186>;
++			interrupt-controller;
++			interrupts-extended = <&L4 11 &L9 11 &L9 9 &L13 11 &L13 9 &L17 11 &L17 9 &L21 11 &L21 9>;
++		};
++		pdma: pdma@3000000 {
++			compatible = "microchip,mpfs-pdma-uio";
++			reg = <0x0 0x3000000 0x0 0x8000>;
++			interrupt-parent = <&L1>;
++			interrupts = <5 6 7 8 9 10 11 12>;
++			#dma-cells = <1>;
++		};
++//		udmabuf@0 {
++//			compatible = "ikwzm,u-dma-buf";
++//			device-name = "udmabuf-ddr-c0";
++//			minor-number = <0>;
++//			size = <0x0 0x02000000>;
++//			memory-region = <&fabricbuf0>;
++//			sync-mode = <3>;
++//		}; 
++//		udmabuf@1 {
++//			compatible = "ikwzm,u-dma-buf";
++//			device-name = "udmabuf-ddr-nc0";
++//			minor-number = <1>;
++//			size = <0x0 0x08000000>;
++//			memory-region = <&fabricbuf1>;
++//			sync-mode = <3>;
++//		};
++//		udmabuf@2 {
++//			compatible = "ikwzm,u-dma-buf";
++//			device-name = "udmabuf-ddr-nc-wcb0";
++//			minor-number = <2>;
++//			size = <0x0 0x08000000>;
++//			memory-region = <&fabricbuf2>;
++//			sync-mode = <3>;
++//
++//		};
++		refclk: refclk {
++			compatible = "fixed-clock";
++			#clock-cells = <0>;
++			clock-frequency = <600000000>;
++			clock-output-names = "msspllclk";
++		};
++		clkcfg: clkcfg@20002000 {
++			compatible = "microchip,mpfs-clkcfg";
++			reg = <0x0 0x20002000 0x0 0x1000>;
++			reg-names = "mss_sysreg";
++			clocks = <&refclk>;
++			#clock-cells = <1>;
++			clock-output-names = "cpu", "axi", "ahb", "envm", "mac0", "mac1", "mmc",
++						 "timer", "uart0", "uart1", "uart2", "uart3", "uart4",
++						 "spi0", "spi1", "i2c0", "i2c1", "can0", "can1", "usb",
++						 "rsvd", "rtc", "qspi", "gpio0", "gpio1", "gpio2",
++						 "ddrc", "fic0", "fic1", "fic2", "fic3", "athena",
++						 "cfm";
++		};
++		rtc: rtc@20124000 {
++			#address-cells = <1>;
++			#size-cells = <0>;
++			compatible = "microchip,mpfs-rtc";
++			reg = <0x0 0x20124000 0x0 0x1000>;
++			interrupt-parent = <&L1>;
++			interrupts = <80 81>;
++			clocks = <&clkcfg CLK_RTC>;
++			clock-names = "rtc";
++		};	
++		serial0: serial@20000000 {
++			compatible = "ns16550a";
++			reg = <0x0 0x20000000 0x0 0x400>;
++			reg-io-width = <4>;
++			reg-shift = <2>;
++			interrupt-parent = <&L1>;
++			interrupts = <90>;
++			current-speed = <115200>;
++			clocks = <&clkcfg CLK_MMUART0>;
++			status = "disabled"; /* Reserved for the HSS */
++		};
++		serial1: serial@20100000 {
++			compatible = "ns16550a";
++			reg = <0x0 0x20100000 0x0 0x400>;
++			reg-io-width = <4>;
++			reg-shift = <2>;
++			interrupt-parent = <&L1>;
++			interrupts = <91>;
++			current-speed = <115200>;
++			clocks = <&clkcfg CLK_MMUART1>;
++			status = "okay";
++		};
++		serial2: serial@20102000 {
++			compatible = "ns16550a";
++			reg = <0x0 0x20102000 0x0 0x400>;
++			reg-io-width = <4>;
++			reg-shift = <2>;
++			interrupt-parent = <&L1>;
++			interrupts = <92>;
++			current-speed = <115200>;
++			clocks = <&clkcfg CLK_MMUART2>;
++			status = "okay";
++		};
++		serial3: serial@20104000 {
++			compatible = "ns16550a";
++			reg = <0x0 0x20104000 0x0 0x400>;
++			reg-io-width = <4>;
++			reg-shift = <2>;
++			interrupt-parent = <&L1>;
++			interrupts = <93>;
++			current-speed = <115200>;
++			clocks = <&clkcfg CLK_MMUART3>;
++			status = "okay";
++		};
++		sdmmc: sdmmc@20008000 {
++			compatible = "cdns,sd4hc";
++			reg = <0x0 0x20008000 0x0 0x1000>;
++			interrupt-parent = <&L1>;
++			interrupts = <88 89>;
++			pinctrl-names = "default";
++			clocks = <&clkcfg CLK_MMC>;
++		};
++		emac1: ethernet@20112000 {
++			compatible = "cdns,macb";
++			reg = <0x0 0x20112000 0x0 0x2000>;
++			interrupt-parent = <&L1>;
++			interrupts = <70 71 72 73>;
++			mac-address = [56 34 12 00 FC 01];
++			phy-mode = "gmii";
++			clocks = <&clkcfg CLK_MAC1>, <&clkcfg CLK_AHB>;
++			clock-names = "pclk", "hclk";
++			phy-handle = <&phy1>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++			phy1: ethernet-phy@0 {
++				reg = <0>;
++			};
++		};
++		emac0: ethernet@20110000 {
++			compatible = "cdns,macb";
++			reg = <0x0 0x20110000 0x0 0x2000>;
++			interrupt-parent = <&L1>;
++			interrupts = <64 65 66 67>;
++			mac-address = [56 34 12 00 FC 02];
++			phy-mode = "gmii";
++			clocks = <&clkcfg CLK_MAC0>, <&clkcfg CLK_AHB>;
++			clock-names = "pclk", "hclk";
++			phy-handle = <&phy0>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++			phy0: ethernet-phy@0 {
++				reg = <0>;
++			};
++		};
++		pcie: pcie@70000000 {
++			#address-cells = <0x3>;
++			#interrupt-cells = <0x1>;
++			#size-cells = <0x2>;
++			compatible = "microchip,pcie-host-1.0";
++			device_type = "pci";
++			clocks = <&clkcfg CLK_FIC0>, <&clkcfg CLK_FIC1>, <&clkcfg CLK_FIC3>;
++			clock-names = "fic0", "fic1", "fic3";
++			bus-range = <0x00 0x7f>;
++			interrupt-map = <0 0 0 1 &pcie 0>,
++					<0 0 0 2 &pcie 1>,
++					<0 0 0 3 &pcie 2>,
++					<0 0 0 4 &pcie 3>;
++			interrupt-map-mask = <0 0 0 7>;
++			interrupt-parent = <&L1>;
++			interrupts = <119>;
++			ranges = <0x03000000 0x0 0x78000000 0x0 0x78000000 0x0 0x04000000>;
++			reg = <0x0 0x70000000 0x0 0x08000000 0x0 0x43000000 0x0 0x00010000>;
++						dma-ranges = <0x02000000 0x0 0x00000000 0x0 0x00000000 0x1 0x00000000>;
++			reg-names = "cfg", "apb";
++			interrupt-controller;
++			status = "disabled";
++		};
++		i2c1: i2c@2010b000 {
++			#address-cells = <1>;
++			#size-cells = <0>;
++			compatible = "microsemi,ms-pf-mss-i2c";
++			reg = <0x0 0x2010b000 0x0 0x1000>;
++			interrupt-parent = <&L1>;
++			interrupts = <61>;
++			clock-frequency = <100000>;
++			clocks = <&clkcfg CLK_I2C1>;
++			status = "okay";
++		};
++		mssgpio0: gpio@20120000 {
++			compatible = "microsemi,ms-pf-mss-gpio";
++			interrupt-parent = <&L1>;
++			interrupts = <13 14 15 16 17 18 19 20 21 22 23 24 25 26>;
++			gpio-controller;
++			clocks = <&clkcfg CLK_GPIO0>;
++			reg = <0x00 0x20120000 0x0 0x1000>;
++			reg-names = "control";
++			#gpio-cells = <2>;
++			ngpios = <14>;
++			status = "okay";
++
++			pmic_irq {
++				gpio-hog;
++				gpios = <13 0>;
++				input;
++			};
++		};
++		mssgpio2: gpio@20122000 {
++			compatible = "microsemi,ms-pf-mss-gpio";
++			interrupt-parent = <&L1>;
++			interrupts = <13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44>;
++			gpio-controller;
++			clocks = <&clkcfg CLK_GPIO2>;
++			reg = <0x00 0x20122000 0x0 0x1000>;
++			reg-names = "control";
++			#gpio-cells = <2>;
++			status = "okay";
++		};
++		mssusb: usb@20201000 {
++			compatible = "microchip,mpfs-usb-host";
++			reg = <0x0 0x20201000 0x00000000 0x00001000>;
++			reg-names = "mc","control";
++			clocks = <&clkcfg CLK_USB>;
++			interrupt-parent = <&L1>;
++			interrupts = <87 86>;
++			interrupt-names = "mc","dma";
++			dr_mode = "host";
++			status = "okay";
++		};
++		can0: can@2010c000 {
++			#address-cells = <1>;
++			#size-cells = <0>;
++			compatible = "microchip,mpfs-can-uio";
++			reg = <0x0 0x2010c000 0x0 0x1000>;
++			interrupt-parent = <&L1>;
++			interrupts = <56>;
++			clocks = <&clkcfg CLK_CAN0>;
++			status = "okay";
++		};
++                can1: can@2010d000 {
++                        #address-cells = <1>;
++                        #size-cells = <0>;
++                        compatible = "microchip,mpfs-can-uio";
++                        reg = <0x0 0x2010d000 0x0 0x1000>;
++                        interrupt-parent = <&L1>;
++                        interrupts = <57>;
++                        clocks = <&clkcfg CLK_CAN1>;
++                        status = "okay";
++                };
++		fpgalsram: fpga_lsram@0x61000000 {
++			compatible = "generic-uio";
++			reg = < 0x0 0x61000000 0x0 0x00010000
++					0x14 0x00000000 0x0 0x00010000 >;
++			status = "okay";
++		};
++		fpgadma: dma@0x60020000 {
++			#address-cells = <1>;
++			#size-cells = <0>;
++			compatible = "microchip,mpfs-fpga-dma-uio";
++			reg = <0x00 0x60020000 0x0 0x1000>;
++			interrupt-parent = <&L1>;
++			interrupts = <120>;
++			status = "okay";
++		};
++		mbox: mailbox@37020000 {
++			compatible = "microchip,polarfire-soc-mailbox";
++			reg = <0x0 0x37020000 0x0 0x1000>, <0x0 0x2000318C 0x0 0x40>;
++			interrupt-parent = <&L1>;
++			interrupts = <96>;
++			#mbox-cells = <1>;
++		};
++		syscontroller: syscontroller {
++			compatible = "microchip,polarfire-soc-sys-controller";
++			#address-cells = <1>;
++			#size-cells = <1>;
++			mboxes = <&mbox 0>;
++		};
++		hwrandom: hwrandom {
++			compatible = "microchip,polarfire-soc-rng";
++			#address-cells = <1>;
++			#size-cells = <1>;
++			syscontroller = <&syscontroller>;
++		};
++		serialnum: serialnum {
++			compatible = "microchip,polarfire-soc-serial-number";
++			#address-cells = <1>;
++			#size-cells = <1>;
++			syscontroller = <&syscontroller>;
++		};
++		fpgadigest: fpgadigest {
++			compatible = "microchip,polarfire-soc-digest";
++			#address-cells = <1>;
++			#size-cells = <1>;
++			syscontroller = <&syscontroller>;
++		};
++	};
++};
+diff --git a/arch/riscv/configs/m100pfsevp_defconfig b/arch/riscv/configs/m100pfsevp_defconfig
+new file mode 100644
+index 000000000000..3b7e8f9f3702
+--- /dev/null
++++ b/arch/riscv/configs/m100pfsevp_defconfig
+@@ -0,0 +1,147 @@
++CONFIG_SYSVIPC=y
++CONFIG_NO_HZ_IDLE=y
++CONFIG_HIGH_RES_TIMERS=y
++CONFIG_IKCONFIG=y
++CONFIG_IKCONFIG_PROC=y
++CONFIG_CGROUPS=y
++CONFIG_CGROUP_BPF=y
++CONFIG_NAMESPACES=y
++CONFIG_USER_NS=y
++CONFIG_CHECKPOINT_RESTORE=y
++CONFIG_KALLSYMS_ALL=y
++CONFIG_BPF_SYSCALL=y
++CONFIG_USERFAULTFD=y
++CONFIG_EMBEDDED=y
++CONFIG_SOC_MICROCHIP_POLARFIRE=y
++CONFIG_SMP=y
++CONFIG_NR_CPUS=5
++CONFIG_HZ_100=y
++CONFIG_CMDLINE="earlycon=sbi root=/dev/mmcblk0p3 rootwait console=ttyS0,115200n8 uio_pdrv_genirq.of_id=generic-uio pci-hpmemsize=0M libata.force=noncq"
++CONFIG_MODULES=y
++CONFIG_MODULE_UNLOAD=y
++CONFIG_BLK_DEV_ZONED=y
++CONFIG_PARTITION_ADVANCED=y
++CONFIG_MAC_PARTITION=y
++CONFIG_LDM_PARTITION=y
++CONFIG_SPARSEMEM_MANUAL=y
++CONFIG_NET=y
++CONFIG_PACKET=y
++CONFIG_UNIX=y
++CONFIG_INET=y
++CONFIG_IP_PNP=y
++CONFIG_IP_PNP_DHCP=y
++CONFIG_PCI=y
++CONFIG_PCI_DEBUG=y
++CONFIG_PCI_HOST_GENERIC=y
++CONFIG_PCIE_MICROCHIP_HOST=y
++CONFIG_DEVTMPFS=y
++CONFIG_MTD=y
++CONFIG_MTD_BLOCK=y
++CONFIG_MTD_CFI=y
++CONFIG_MTD_CFI_INTELEXT=y
++CONFIG_MTD_CFI_AMDSTD=y
++CONFIG_MTD_CFI_STAA=y
++CONFIG_MTD_PHYSMAP=y
++CONFIG_BLK_DEV_LOOP=y
++CONFIG_BLK_DEV_NBD=y
++CONFIG_VIRTIO_BLK=y
++CONFIG_BLK_DEV_NVME=y
++CONFIG_EEPROM_AT24=y
++CONFIG_BLK_DEV_SD=y
++CONFIG_BLK_DEV_SR=y
++CONFIG_ATA=y
++CONFIG_SATA_AHCI=y
++CONFIG_SATA_AHCI_PLATFORM=y
++CONFIG_ATA_GENERIC=y
++CONFIG_TARGET_CORE=y
++CONFIG_TCM_IBLOCK=y
++CONFIG_TCM_FILEIO=y
++CONFIG_NETDEVICES=y
++CONFIG_MACB=y
++CONFIG_MICREL_PHY=y
++CONFIG_INPUT_EVDEV=y
++CONFIG_INPUT_TOUCHSCREEN=y
++CONFIG_TOUCHSCREEN_EDT_FT5X06=y
++CONFIG_SERIAL_8250=y
++CONFIG_SERIAL_8250_CONSOLE=y
++# CONFIG_SERIAL_8250_PCI is not set
++CONFIG_SERIAL_OF_PLATFORM=y
++CONFIG_SERIAL_EARLYCON_RISCV_SBI=y
++CONFIG_HW_RANDOM=y
++CONFIG_HW_RANDOM_POLARFIRE_SOC=y
++CONFIG_I2C=y
++CONFIG_I2C_CHARDEV=y
++CONFIG_I2C_MICROSEMI=y
++CONFIG_I2C_OCORES=y
++CONFIG_GPIOLIB=y
++CONFIG_DEBUG_GPIO=y
++CONFIG_GPIO_SYSFS=y
++CONFIG_GPIO_MICROSEMI=y
++CONFIG_PMBUS=y
++CONFIG_MEDIA_SUPPORT=y
++CONFIG_MEDIA_CAMERA_SUPPORT=y
++CONFIG_MEDIA_USB_SUPPORT=y
++CONFIG_USB_VIDEO_CLASS=m
++CONFIG_V4L_PLATFORM_DRIVERS=y
++CONFIG_USB=y
++CONFIG_USB_XHCI_HCD=y
++CONFIG_USB_XHCI_PLATFORM=y
++CONFIG_USB_EHCI_HCD=y
++CONFIG_USB_EHCI_HCD_PLATFORM=y
++CONFIG_USB_OHCI_HCD=y
++CONFIG_USB_OHCI_HCD_PLATFORM=y
++CONFIG_USB_ACM=y
++CONFIG_USB_STORAGE=y
++CONFIG_USB_UAS=y
++CONFIG_USB_MUSB_HDRC=y
++CONFIG_USB_MUSB_MPFS_MICROCHIP=y
++CONFIG_USB_INVENTRA_DMA=y
++CONFIG_USB_SERIAL=y
++CONFIG_NOP_USB_XCEIV=y
++CONFIG_MMC=y
++CONFIG_MMC_SDHCI=y
++CONFIG_MMC_SDHCI_PLTFM=y
++CONFIG_MMC_SDHCI_CADENCE=y
++CONFIG_RTC_CLASS=y
++CONFIG_RTC_DRV_MPFS=y
++CONFIG_DMADEVICES=y
++CONFIG_SF_PDMA=y
++CONFIG_U_DMA_BUF=y
++CONFIG_UIO=y
++CONFIG_UIO_PDRV_GENIRQ=y
++CONFIG_UIO_DMEM_GENIRQ=y
++CONFIG_UIO_MICROCHIP_CAN=y
++CONFIG_UIO_MICROCHIP_PDMA=y
++CONFIG_UIO_MICROSEMI_DMA=y
++CONFIG_VIRTIO_MMIO=y
++CONFIG_MCHP_CLK_MPFS=y
++CONFIG_MAILBOX=y
++CONFIG_POLARFIRE_SOC_MAILBOX=y
++CONFIG_POLARFIRE_SOC_SYS_CTRL=y
++CONFIG_POLARFIRE_SOC_SERIAL_NUMBER=y
++CONFIG_POLARFIRE_SOC_FPGA_DIGEST=y
++CONFIG_IIO=y
++CONFIG_IIO_SW_DEVICE=y
++CONFIG_IIO_SW_TRIGGER=y
++CONFIG_PAC193X=y
++CONFIG_EXT4_FS=y
++CONFIG_EXT4_FS_POSIX_ACL=y
++CONFIG_FANOTIFY=y
++CONFIG_QUOTA=y
++CONFIG_AUTOFS4_FS=y
++CONFIG_MSDOS_FS=y
++CONFIG_VFAT_FS=y
++CONFIG_FAT_DEFAULT_IOCHARSET="ascii"
++CONFIG_TMPFS=y
++CONFIG_TMPFS_POSIX_ACL=y
++CONFIG_NFS_FS=y
++CONFIG_ROOT_NFS=y
++CONFIG_NLS_CODEPAGE_437=y
++CONFIG_NLS_CODEPAGE_850=y
++CONFIG_NLS_ASCII=y
++CONFIG_NLS_ISO8859_1=y
++CONFIG_NLS_UTF8=y
++CONFIG_PRINTK_TIME=y
++CONFIG_STRIP_ASM_SYMS=y
++CONFIG_DEBUG_FS=y
++CONFIG_SCHEDSTATS=y
+diff --git a/drivers/gpio/gpio-microsemi.c b/drivers/gpio/gpio-microsemi.c
+index 3cb137835547..22064a3cbbe4 100644
+--- a/drivers/gpio/gpio-microsemi.c
++++ b/drivers/gpio/gpio-microsemi.c
+@@ -427,11 +427,14 @@ static int microsemi_mss_gpio_probe(struct platform_device *pdev)
+ 	mss_gpio->gc.get_direction = microsemi_mss_gpio_get_direction;
+ 	mss_gpio->gc.get = microsemi_mss_gpio_get_value;
+ 	mss_gpio->gc.set = microsemi_mss_gpio_set_value;
+-	mss_gpio->gc.base = 0;
++	pr_info("%s: pdev->id=%d\n", __func__, pdev->id);
++	mss_gpio->gc.base = (pdev->id < 0) ?
++			of_alias_get_id(node, "gpio") * 32 : pdev->id * 32;
+ 	mss_gpio->gc.ngpio = ngpio;
+ 	mss_gpio->gc.label = dev_name(dev);
+ 	mss_gpio->gc.parent = dev;
+ 	mss_gpio->gc.owner = THIS_MODULE;
++	pr_info("%s: base=%d label=%s\n", __func__, mss_gpio->gc.base, mss_gpio->gc.label);
+ 
+ 	ret = gpiochip_add_data(&mss_gpio->gc, mss_gpio);
+ 	if (ret)
+diff --git a/drivers/gpio/gpiolib.c b/drivers/gpio/gpiolib.c
+index 2f350e3df965..bcc7e89a3726 100644
+--- a/drivers/gpio/gpiolib.c
++++ b/drivers/gpio/gpiolib.c
+@@ -256,6 +256,9 @@ static int gpiodev_add_to_list(struct gpio_device *gdev)
+ {
+ 	struct gpio_device *prev, *next;
+ 
++	pr_info("%s:%d: gdev->base %d gdev->ngpio %d\n", __func__,
++		gdev->id, gdev->base, gdev->ngpio);
++
+ 	if (list_empty(&gpio_devices)) {
+ 		/* initial entry in list */
+ 		list_add_tail(&gdev->list, &gpio_devices);
+@@ -263,6 +266,8 @@ static int gpiodev_add_to_list(struct gpio_device *gdev)
+ 	}
+ 
+ 	next = list_entry(gpio_devices.next, struct gpio_device, list);
++	pr_info("%s:%d: next->base %d next->ngpio %d\n",
++		__func__,  next->id, next->base, next->ngpio);
+ 	if (gdev->base + gdev->ngpio <= next->base) {
+ 		/* add before first entry */
+ 		list_add(&gdev->list, &gpio_devices);
+@@ -270,6 +275,8 @@ static int gpiodev_add_to_list(struct gpio_device *gdev)
+ 	}
+ 
+ 	prev = list_entry(gpio_devices.prev, struct gpio_device, list);
++	pr_info("%s:%d: prev->base %d prev->ngpio %d\n",
++		__func__,  prev->id, prev->base, prev->ngpio);
+ 	if (prev->base + prev->ngpio <= gdev->base) {
+ 		/* add behind last entry */
+ 		list_add_tail(&gdev->list, &gpio_devices);
+@@ -281,7 +288,10 @@ static int gpiodev_add_to_list(struct gpio_device *gdev)
+ 		if (&next->list == &gpio_devices)
+ 			break;
+ 
+-		/* add between prev and next */
++		pr_info("%s:%d: prev->base %d prev->ngpio %d\n",
++			__func__,  prev->id, prev->base, prev->ngpio);
++
++	/* add between prev and next */
+ 		if (prev->base + prev->ngpio <= gdev->base
+ 				&& gdev->base + gdev->ngpio <= next->base) {
+ 			list_add(&gdev->list, &prev->list);
+-- 
+2.28.0
+
