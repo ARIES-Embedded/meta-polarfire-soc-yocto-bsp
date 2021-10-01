@@ -76,6 +76,6 @@ do_deploy_append_m100pfsevp() {
 }
 
 FILES_${PN}-env += "/boot/boot.scr.uimg"
-COMPATIBLE_MACHINE = "(icicle-kit-es|icicle-kit-es-amp)"
+COMPATIBLE_MACHINE = "(icicle-kit-es|icicle-kit-es-amp|m100pfsevp)"
 
 TOOLCHAIN = "gcc"

@@ -32,6 +32,13 @@ do_configure_icicle-kit-es-amp () {
 	cp -f ${WORKDIR}/${HSS_PAYLOAD}.yaml ${WORKDIR}/git/tools/hss-payload-generator/
 }
 
+# NOTE: Only using the Payload generator from the HSS
+do_configure_m100pfsevp () {
+	## taking U-Boot binary and package for HSS
+	cp -f ${DEPLOY_DIR_IMAGE}/u-boot.bin ${WORKDIR}/git/
+	cp -f ${WORKDIR}/${HSS_PAYLOAD}.yaml ${WORKDIR}/git/tools/hss-payload-generator/
+}
+
 EXTRA_OEMAKE = "CC='${BUILD_CC}' CFLAGS='${BUILD_CFLAGS}' LDFLAGS='${BUILD_LDFLAGS}'"
 do_compile () {
     ## Adding u-boot as a payload
