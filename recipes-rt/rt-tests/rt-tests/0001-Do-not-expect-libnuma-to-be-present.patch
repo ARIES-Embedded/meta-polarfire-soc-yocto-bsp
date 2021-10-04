@@ -1,0 +1,41 @@
+From 1fd210d2ee2b7ab0016304f61451d5d994748700 Mon Sep 17 00:00:00 2001
+From: Wolfgang Grandegger <wg@aries-embedded.de>
+Date: Mon, 4 Oct 2021 17:13:04 +0200
+Subject: [PATCH] Do not expect libnuma to be present
+
+Signed-off-by: Wolfgang Grandegger <wg@aries-embedded.de>
+---
+ src/cyclictest/cyclictest.c | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cyclictest/cyclictest.c b/src/cyclictest/cyclictest.c
+index f38c453..543aa6b 100644
+--- a/src/cyclictest/cyclictest.c
++++ b/src/cyclictest/cyclictest.c
+@@ -1019,8 +1019,9 @@ static void process_options(int argc, char *argv[], int max_cpus)
+ 			if (smp)
+ 				break;
+ 			if (numa_initialize())
+-				fatal("Couldn't initialize libnuma");
+-			numa = 1;
++				warn("Couldn't initialize libnuma\n");
++			else
++				numa = 1;
+ 			if (optarg) {
+ 				parse_cpumask(optarg, max_cpus, &affinity_mask);
+ 				setaffinity = AFFINITY_SPECIFIED;
+@@ -1202,9 +1203,9 @@ static void process_options(int argc, char *argv[], int max_cpus)
+ 	/* if smp wasn't requested, test for numa automatically */
+ 	if (!smp) {
+ 		if (numa_initialize())
+-			fatal("Couldn't initialize libnuma");
+-		numa = 1;
++			warn("Couldn't initialize libnuma\n");
++		else
++			numa = 1;
+ 		if (setaffinity == AFFINITY_UNSPECIFIED)
+ 			setaffinity = AFFINITY_USEALL;
+ 	}
+-- 
+2.28.0
+
