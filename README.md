@@ -26,7 +26,7 @@ repo init -u https://github.com/polarfire-soc/meta-polarfire-soc-yocto-bsp.git -
 For the Aries Embedded M100PFSEVP, please use:
 ```bash
 mkdir yocto-dev && cd yocto-dev
-repo init -u https://github.com/ARIES-Embedded/meta-polarfire-soc-yocto-bsp.git -b aries -m tools/manifests/riscv-yocto.xml
+repo init -u https://github.com/ARIES-Embedded/meta-polarfire-soc-yocto-bsp.git -b aries-v2021.08 -m tools/manifests/riscv-yocto.xml
 ```
 
 ### Update the repo workspace
