@@ -21,7 +21,9 @@ SRC_URI_append_m100pfsevp = " \
     file://m100pfsevp.dtsi \
     file://m100pfsevp-emmc.dts \
     file://m100pfsevp-sdcard.dts \
-    file://0001-riscv-Add-Aries-M100PFSEVP-PolarFire-SoC-FPGA-Platfo.patch \
+    file://0001-gpio-microsemi-enumerate-GPIOs-starting-from-0.patch \
+    file://0002-usb-musb-start-a-new-session-also-if-vbus-error-occu.patch \
+    file://0003-riscv-Add-Aries-M100PFSEVP-PolarFire-SoC-FPGA-Platfo.patch \
  "
 
 do_configure_prepend_icicle-kit-es() {
