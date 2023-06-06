@@ -13,6 +13,7 @@ The complete User Guides for each development platform, containing board and boo
 
   - [ICICLE-KIT-ES](https://mi-v-ecosystem.github.io/redirects/icicle-kit-sw-developer-guide_icicle-kit-sw-developer-guide) (Icicle Kit Engineering Sample) (Requires minimum Design Tag 2023.02)
   - [MPFS-VIDEO-KIT](https://mi-v-ecosystem.github.io/redirects/boards-mpfs-sev-kit-sev-kit-user-guide) (PolarFire SoC Video Kit)
+  - [M100PFSEVP](https://www.aries-embedded.com/evaluation-kit/fpga/polarfire-microchip-soc-fpga-m100pfsevp-riscv-hsmc-pmod) (ARIES Embedded M100PFSEVP PolarFire SoC-FPGA Evaluation Platform)
 
 ## Build Instructions
 Before continuing, ensure that the prerequisite packages are present on your system. Please see the [Host PC setup for Yocto section](#Dependencies) for further details.
@@ -23,6 +24,12 @@ This needs to be done every time you want a clean setup based on the latest BSP.
 $ mkdir yocto-dev && cd yocto-dev
 $ repo init -u https://github.com/polarfire-soc/polarfire-soc-yocto-manifests.git -b 2023.02.1 -m default.xml
 ```
+For the ARIES Embedded M100PFSEVP, please use:
+```bash
+mkdir yocto-dev && cd yocto-dev
+$ $ repo init -u https://github.com/ARIES-Embedded/meta-polarfire-soc-yocto-bsp.git -b aries-v2023.02.1 -m repo/manifests/default.xml
+```
+
 ### Update the repo workspace
 ```bash
 repo sync
@@ -206,6 +213,7 @@ The following table details the available targets:
 | `MACHINE=icicle-kit-es`    | ICICLE-KIT-ES, Icicle Kit engineering samples                         |
 | `MACHINE=icicle-kit-es-amp`| ICICLE-KIT-ES, Icicle Kit engineering samples in AMP mode             |
 | `MACHINE=mpfs-video-kit`   | MPFS250-VIDEO-KIT, PolarFire SoC Video Kit                            |
+| `MACHINE=m100pfsevp`       | M100PFSEVP, Aries M100PFSEVP PolarFire SoC-FPGA Evaluation Platform   |
 
 The `icicle-kit-es-amp` machine can be used to build the Icicle Kit engineering sample with AMP support. Please see the [Asymmetric Multiprocessing (AMP)](https://mi-v-ecosystem.github.io/redirects/asymmetric-multiprocessing_amp) documentation for further details.
 
